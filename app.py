@@ -1,7 +1,7 @@
 import streamlit as st
 import pytz
 from datetime import datetime
-import json
+import plotly.graph_objects as go
 
 # Page config
 st.set_page_config(
@@ -68,21 +68,6 @@ section[data-testid="stSidebar"] {
 .stSelectbox > div > div:hover {
     border-color: #00ffff !important;
 }
-
-/* Custom component container */
-.timezone-circle {
-    background: #000000;
-    border-radius: 15px;
-    border: 1px solid #00ff00;
-    padding: 20px;
-    margin: 20px 0;
-    box-shadow: 0 0 20px rgba(0, 255, 0, 0.2);
-}
-
-/* Progress bar */
-.stProgress > div > div {
-    background-color: #00ff00 !important;
-}
 </style>
 """, unsafe_allow_html=True)
 
@@ -111,179 +96,98 @@ def get_available_timezones():
     
     return dict(sorted(timezone_dict.items()))
 
-def create_circle_visualization_html(locations):
-    """Generate HTML/JavaScript for the circular visualization"""
-    html_content = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <script src="https://d3js.org/d3.v7.min.js"></script>
-        <style>
-            #timezone-circle {{
-                width: 100%;
-                height: 600px;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-            }}
-        </style>
-    </head>
-    <body>
-        <div id="timezone-circle"></div>
-        <script>
-            const width = 600;
-            const height = 600;
-            const radius = 200;
-            const centerX = width / 2;
-            const centerY = height / 2;
+def get_current_time(timezone_str):
+    """Get current time in specified timezone"""
+    try:
+        tz = pytz.timezone(timezone_str)
+        return datetime.now(tz).strftime('%I:%M %p')
+    except pytz.exceptions.UnknownTimeZoneError:
+        return "Invalid Timezone"
 
-            const svg = d3.select("#timezone-circle")
-                .append("svg")
-                .attr("width", width)
-                .attr("height", height)
-                .style("background", "black");
-
-            // Create gradient definitions
-            const defs = svg.append("defs");
-            const gradient = defs.append("linearGradient")
-                .attr("id", "neon-gradient")
-                .attr("x1", "0%")
-                .attr("y1", "0%")
-                .attr("x2", "100%")
-                .attr("y2", "100%");
-
-            gradient.append("stop")
-                .attr("offset", "0%")
-                .attr("stop-color", "#00ff00");
-
-            gradient.append("stop")
-                .attr("offset", "100%")
-                .attr("stop-color", "#00ffff");
-
-            // Draw base circles
-            const timezones = {json.dumps(locations)};
-            const timezonesData = timezones.map((tz, i) => ({{
-                ...tz,
-                radius: radius - (i * 40),
-                color: d3.interpolateRainbow(i / timezones.length)
-            }}));
-
-            // Add circles for each timezone
-            timezonesData.forEach((tz, i) => {{
-                svg.append("circle")
-                    .attr("cx", centerX)
-                    .attr("cy", centerY)
-                    .attr("r", tz.radius)
-                    .attr("fill", "none")
-                    .attr("stroke", "#333")
-                    .attr("stroke-width", 1);
-
-                // Add business hours arc
-                const arc = d3.arc()
-                    .innerRadius(tz.radius - 15)
-                    .outerRadius(tz.radius + 15)
-                    .startAngle(Math.PI * (8 / 12)) // 8 AM
-                    .endAngle(Math.PI * (18 / 12)); // 6 PM
-
-                svg.append("path")
-                    .attr("d", arc)
-                    .attr("transform", `translate(${{centerX}},${{centerY}})`)
-                    .attr("fill", tz.color)
-                    .attr("opacity", 0.5);
-
-                // Add timezone label
-                svg.append("text")
-                    .attr("x", centerX + 5)
-                    .attr("y", centerY - tz.radius)
-                    .attr("fill", tz.color)
-                    .attr("font-family", "monospace")
-                    .attr("font-size", "14px")
-                    .text(tz.city);
-            }});
-
-            // Add hour markers
-            for (let i = 0; i < 24; i++) {{
-                const angle = (i * 15) - 90;
-                const radian = (angle * Math.PI) / 180;
-                const x = centerX + (radius + 10) * Math.cos(radian);
-                const y = centerY + (radius + 10) * Math.sin(radian);
-
-                svg.append("text")
-                    .attr("x", x)
-                    .attr("y", y)
-                    .attr("text-anchor", "middle")
-                    .attr("alignment-baseline", "middle")
-                    .attr("fill", "#00ff00")
-                    .attr("font-family", "monospace")
-                    .attr("font-size", "12px")
-                    .text(i.toString().padStart(2, '0'));
-            }}
-
-            // Add center text
-            svg.append("text")
-                .attr("x", centerX)
-                .attr("y", centerY - 20)
-                .attr("text-anchor", "middle")
-                .attr("fill", "#00ff00")
-                .attr("font-family", "monospace")
-                .attr("font-size", "16px")
-                .text("we can chat in");
-
-            const timeDisplay = svg.append("text")
-                .attr("x", centerX)
-                .attr("y", centerY + 10)
-                .attr("text-anchor", "middle")
-                .attr("fill", "#ffffff")
-                .attr("font-family", "monospace")
-                .attr("font-size", "24px");
-
-            svg.append("text")
-                .attr("x", centerX)
-                .attr("y", centerY + 30)
-                .attr("text-anchor", "middle")
-                .attr("fill", "#ff9900")
-                .attr("font-family", "monospace")
-                .attr("font-size", "12px")
-                .text("for up to 2.5 hours");
-
-            // Update time
-            function updateTime() {{
-                const now = new Date();
-                const hours = now.getHours().toString().padStart(2, '0');
-                const minutes = now.getMinutes().toString().padStart(2, '0');
-                const seconds = now.getSeconds().toString().padStart(2, '0');
-                timeDisplay.text(`${{hours}}:${{minutes}}:${{seconds}}`);
-
-                // Update clock hand
-                const angle = ((hours % 12 + minutes / 60) * 30 - 90) * (Math.PI / 180);
-                const handLength = radius - 20;
-                const x2 = centerX + handLength * Math.cos(angle);
-                const y2 = centerY + handLength * Math.sin(angle);
-
-                svg.select(".clock-hand").remove();
-                svg.append("line")
-                    .attr("class", "clock-hand")
-                    .attr("x1", centerX)
-                    .attr("y1", centerY)
-                    .attr("x2", x2)
-                    .attr("y2", y2)
-                    .attr("stroke", "#ff0000")
-                    .attr("stroke-width", 2);
-
-                svg.append("circle")
-                    .attr("cx", centerX)
-                    .attr("cy", centerY)
-                    .attr("r", 5)
-                    .attr("fill", "#ff0000");
-            }}
-
-            setInterval(updateTime, 1000);
-            updateTime();
-        </script>
-    </body>
-    </html>
-    """
-    return html_content
+def create_circular_visualization():
+    """Create circular visualization using plotly"""
+    fig = go.Figure()
+    
+    # Calculate current hour for time indicator
+    current_utc = datetime.now(pytz.UTC)
+    current_hour = current_utc.hour + current_utc.minute / 60
+    
+    # Setup the polar plot
+    hours = list(range(24))
+    r = [1] * 24  # Constant radius for the hour markers
+    
+    # Add hour markers
+    fig.add_trace(go.Scatterpolar(
+        r=r,
+        theta=[(h * 360/24) for h in hours],
+        text=[f"{h:02d}:00" for h in hours],
+        mode='text+markers',
+        marker=dict(size=8, color='#00ff00'),
+        textfont=dict(color='#00ff00', size=10),
+        showlegend=False
+    ))
+    
+    # Add timezone arcs
+    colors = ['#00ff00', '#00ffff', '#ff00ff', '#ffff00', '#ff3300', '#ff0099']
+    for idx, location in enumerate(st.session_state.locations):
+        tz = pytz.timezone(location['timezone'])
+        local_time = current_utc.astimezone(tz)
+        offset = local_time.utcoffset().total_seconds() / 3600
+        
+        # Business hours in local time (8 AM to 6 PM)
+        start_hour = (8 - offset) % 24
+        end_hour = (18 - offset) % 24
+        
+        # Create arc for business hours
+        theta = []
+        r = []
+        for h in range(24):
+            if start_hour <= h <= end_hour:
+                theta.append(h * 360/24)
+                r.append(0.8 - idx * 0.15)
+        
+        fig.add_trace(go.Scatterpolar(
+            r=r,
+            theta=theta,
+            mode='lines',
+            line=dict(width=20, color=colors[idx % len(colors)]),
+            name=f"{location['city']} ({get_current_time(location['timezone'])})",
+            opacity=0.7
+        ))
+    
+    # Add current time indicator
+    fig.add_trace(go.Scatterpolar(
+        r=[0, 0.9],
+        theta=[current_hour * 360/24] * 2,
+        mode='lines',
+        line=dict(color='#ff0000', width=2),
+        showlegend=False
+    ))
+    
+    # Update layout
+    fig.update_layout(
+        polar=dict(
+            radialaxis=dict(visible=False, range=[0, 1]),
+            angularaxis=dict(
+                visible=True,
+                rotation=90,
+                direction='clockwise',
+                period=24
+            ),
+            bgcolor='black'
+        ),
+        showlegend=True,
+        paper_bgcolor='black',
+        plot_bgcolor='black',
+        legend=dict(
+            font=dict(color='#00ff00'),
+            bgcolor='rgba(0,0,0,0.5)',
+            bordercolor='#00ff00'
+        ),
+        height=700
+    )
+    
+    return fig
 
 # Main title
 st.markdown('<h1 class="big-title">⚡ Global Time Sync</h1>', unsafe_allow_html=True)
@@ -327,10 +231,11 @@ for idx, location in enumerate(st.session_state.locations):
         st.rerun()
 
 # Display the circular visualization
-st.components.v1.html(
-    create_circle_visualization_html(st.session_state.locations),
-    height=650
-)
+st.plotly_chart(create_circular_visualization(), use_container_width=True)
+
+# Auto-refresh
+st.empty()
+st.experimental_rerun()
 
 # Footer
 st.markdown("""
