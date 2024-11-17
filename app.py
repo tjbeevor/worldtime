@@ -10,43 +10,26 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS with neon/cyberpunk styling
+# Custom CSS with traditional styling
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&family=Roboto+Mono&display=swap');
 
-/* Main background and theme */
-.stApp {
-    background-color: #000000;
-    color: #fff;
-}
-
-/* Main title styling */
 .big-title {
     font-family: 'Poppins', sans-serif;
-    font-size: 3.5rem !important;
+    font-size: 2.5rem !important;
     font-weight: 600 !important;
-    background: linear-gradient(120deg, #00ff00, #00ffff);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+    color: #1a237e;
     padding: 20px 0;
     text-align: center;
-    text-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
 }
 
-/* Sidebar styling */
-section[data-testid="stSidebar"] {
-    background-color: #000000;
-    border-right: 1px solid #00ff00;
-}
-
-/* Button styling */
 .stButton > button {
     width: 100%;
-    background-color: #000000 !important;
-    color: #00ff00 !important;
-    border: 1px solid #00ff00 !important;
-    border-radius: 10px;
+    background-color: #1a237e !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 5px;
     padding: 10px 20px;
     font-family: 'Poppins', sans-serif;
     font-weight: 600;
@@ -54,19 +37,21 @@ section[data-testid="stSidebar"] {
 }
 
 .stButton > button:hover {
-    border-color: #00ffff !important;
-    color: #00ffff !important;
-    box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+    background-color: #283593 !important;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
 }
 
-/* Select box styling */
 .stSelectbox > div > div {
-    background-color: #000000 !important;
-    border: 1px solid #00ff00 !important;
+    background-color: white !important;
+    border: 1px solid #e0e0e0 !important;
 }
 
-.stSelectbox > div > div:hover {
-    border-color: #00ffff !important;
+.footer {
+    background: #f5f5f5;
+    padding: 20px;
+    border-radius: 5px;
+    border: 1px solid #e0e0e0;
+    margin-top: 2rem;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -122,13 +107,22 @@ def create_circular_visualization():
         theta=[(h * 360/24) for h in hours],
         text=[f"{h:02d}:00" for h in hours],
         mode='text+markers',
-        marker=dict(size=8, color='#00ff00'),
-        textfont=dict(color='#00ff00', size=10),
+        marker=dict(size=8, color='#1a237e'),
+        textfont=dict(color='#1a237e', size=10),
         showlegend=False
     ))
     
+    # Professional color palette
+    colors = [
+        '#1a237e',  # Dark Blue
+        '#0277bd',  # Blue
+        '#00838f',  # Teal
+        '#2e7d32',  # Green
+        '#5d4037',  # Brown
+        '#283593'   # Indigo
+    ]
+    
     # Add timezone arcs
-    colors = ['#00ff00', '#00ffff', '#ff00ff', '#ffff00', '#ff3300', '#ff0099']
     for idx, location in enumerate(st.session_state.locations):
         tz = pytz.timezone(location['timezone'])
         local_time = current_utc.astimezone(tz)
@@ -160,11 +154,11 @@ def create_circular_visualization():
         r=[0, 0.9],
         theta=[current_hour * 360/24] * 2,
         mode='lines',
-        line=dict(color='#ff0000', width=2),
+        line=dict(color='#d32f2f', width=2),
         showlegend=False
     ))
     
-    # Update layout
+    # Update layout with white background
     fig.update_layout(
         polar=dict(
             radialaxis=dict(visible=False, range=[0, 1]),
@@ -172,32 +166,35 @@ def create_circular_visualization():
                 visible=True,
                 rotation=90,
                 direction='clockwise',
-                period=24
+                period=24,
+                gridcolor='#e0e0e0',
+                linecolor='#9e9e9e'
             ),
-            bgcolor='black'
+            bgcolor='white'
         ),
         showlegend=True,
-        paper_bgcolor='black',
-        plot_bgcolor='black',
+        paper_bgcolor='white',
+        plot_bgcolor='white',
         legend=dict(
-            font=dict(color='#00ff00'),
-            bgcolor='rgba(0,0,0,0.5)',
-            bordercolor='#00ff00'
+            font=dict(color='#1a237e'),
+            bgcolor='rgba(255,255,255,0.9)',
+            bordercolor='#e0e0e0'
         ),
-        height=700
+        height=700,
+        margin=dict(t=30, b=30)
     )
     
     return fig
 
 # Main title
-st.markdown('<h1 class="big-title">⚡ Global Time Sync</h1>', unsafe_allow_html=True)
+st.markdown('<h1 class="big-title">🌍 Global Time Sync</h1>', unsafe_allow_html=True)
 
 # Sidebar
-st.sidebar.markdown('<h2 style="color: #00ff00;">⚙️ Configure Locations</h2>', unsafe_allow_html=True)
+st.sidebar.markdown('<h2 style="color: #1a237e;">⚙️ Configure Locations</h2>', unsafe_allow_html=True)
 
 # Location management
 available_timezones = get_available_timezones()
-region = st.sidebar.selectbox('Select Region 🌎', list(available_timezones.keys()))
+region = st.sidebar.selectbox('Select Region', list(available_timezones.keys()))
 
 selected_timezone_names = {loc['timezone'] for loc in st.session_state.locations}
 available_locations = [(city, tz) for city, tz in available_timezones[region] 
@@ -205,12 +202,12 @@ available_locations = [(city, tz) for city, tz in available_timezones[region]
 
 if available_locations:
     selected_location = st.sidebar.selectbox(
-        'Choose Location 📍',
+        'Choose Location',
         available_locations,
         format_func=lambda x: x[0]
     )
     
-    if st.sidebar.button('➕ Add Location'):
+    if st.sidebar.button('Add Location'):
         if len(st.session_state.locations) < 6:
             city, timezone = selected_location
             st.session_state.locations.append({'city': city, 'timezone': timezone})
@@ -218,7 +215,7 @@ if available_locations:
 
 # Display current locations
 st.sidebar.markdown('---')
-st.sidebar.markdown('<h3 style="color: #00ff00;">🗺️ Current Locations</h3>', unsafe_allow_html=True)
+st.sidebar.markdown('<h3 style="color: #1a237e;">Current Locations</h3>', unsafe_allow_html=True)
 
 # Progress bar
 locations_used = len(st.session_state.locations)
@@ -226,26 +223,27 @@ st.sidebar.progress(locations_used / 6, text=f'Using {locations_used}/6 location
 
 # Remove buttons
 for idx, location in enumerate(st.session_state.locations):
-    if st.sidebar.button(f'❌ Remove {location["city"]}', key=f'remove_{idx}'):
+    if st.sidebar.button(f'Remove {location["city"]}', key=f'remove_{idx}'):
         st.session_state.locations.pop(idx)
         st.rerun()
 
 # Display the circular visualization
 st.plotly_chart(create_circular_visualization(), use_container_width=True)
 
-# Auto-refresh
-st.empty()
-st.experimental_rerun()
+# Add refresh button
+if st.button('Refresh Time'):
+    st.rerun()
 
 # Footer
 st.markdown("""
-<div style="background: rgba(0,0,0,0.8); padding: 20px; border-radius: 10px; border: 1px solid #00ff00; margin-top: 2rem;">
-    <h3 style="color: #00ff00; font-family: 'Poppins', sans-serif;">💡 Quick Guide</h3>
-    <ul style="color: #00ff00; font-family: 'Poppins', sans-serif;">
+<div class="footer">
+    <h3 style="color: #1a237e; font-family: 'Poppins', sans-serif;">📝 Quick Guide</h3>
+    <ul style="color: #424242; font-family: 'Poppins', sans-serif;">
         <li>Add up to 6 locations from the sidebar</li>
         <li>Colored arcs show business hours (8 AM - 6 PM)</li>
         <li>The red line shows current time</li>
         <li>Overlapping arcs indicate optimal meeting times</li>
+        <li>Click the refresh button to update the current time</li>
     </ul>
 </div>
 """, unsafe_allow_html=True)
