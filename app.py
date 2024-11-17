@@ -15,47 +15,47 @@ if 'locations' not in st.session_state:
     ]
 
 def get_available_timezones():
-    """Return a organized dictionary of major timezones"""
-    major_timezones = {
-        'Americas': [
-            ('New York', 'America/New_York'),
-            ('Los Angeles', 'America/Los_Angeles'),
-            ('Toronto', 'America/Toronto'),
-            ('São Paulo', 'America/Sao_Paulo')
-        ],
-        'Europe': [
-            ('London', 'Europe/London'),
-            ('Paris', 'Europe/Paris'),
-            ('Berlin', 'Europe/Berlin'),
-            ('Stockholm', 'Europe/Stockholm')
-        ],
-        'Asia': [
-            ('Dubai', 'Asia/Dubai'),
-            ('Singapore', 'Asia/Singapore'),
-            ('Tokyo', 'Asia/Tokyo'),
-            ('Shanghai', 'Asia/Shanghai')
-        ],
-        'Pacific': [
-            ('Sydney', 'Australia/Sydney'),
-            ('Melbourne', 'Australia/Melbourne'),
-            ('Auckland', 'Pacific/Auckland')
-        ]
-    }
-    return major_timezones
+    """Return an organized dictionary of all timezones"""
+    all_timezones = pytz.all_timezones
+    timezone_dict = {}
+    
+    # Helper function to get a clean city name from timezone string
+    def get_city_name(tz):
+        return tz.split('/')[-1].replace('_', ' ')
+    
+    # Categorize timezones by region
+    for tz in all_timezones:
+        region = tz.split('/')[0]
+        if region not in timezone_dict:
+            timezone_dict[region] = []
+        city_name = get_city_name(tz)
+        timezone_dict[region].append((f"{city_name} ({tz})", tz))
+    
+    # Sort regions and cities
+    for region in timezone_dict:
+        timezone_dict[region] = sorted(timezone_dict[region], key=lambda x: x[0])
+    
+    return dict(sorted(timezone_dict.items()))
 
 def get_current_time(timezone_str):
     """Get current time in specified timezone"""
-    tz = pytz.timezone(timezone_str)
-    return datetime.now(tz).strftime('%I:%M %p')
+    try:
+        tz = pytz.timezone(timezone_str)
+        return datetime.now(tz).strftime('%I:%M %p')
+    except pytz.exceptions.UnknownTimeZoneError:
+        return "Invalid Timezone"
 
 def is_business_hour(hour, timezone_str, business_start=8, business_end=18):
     """Check if given hour is within business hours in specified timezone"""
-    tz = pytz.timezone(timezone_str)
-    now = datetime.now(pytz.UTC)
-    local_time = now.astimezone(tz)
-    offset = local_time.utcoffset().total_seconds() / 3600
-    adjusted_hour = (hour + int(offset)) % 24
-    return business_start <= adjusted_hour <= business_end
+    try:
+        tz = pytz.timezone(timezone_str)
+        now = datetime.now(pytz.UTC)
+        local_time = now.astimezone(tz)
+        offset = local_time.utcoffset().total_seconds() / 3600
+        adjusted_hour = (hour + int(offset)) % 24
+        return business_start <= adjusted_hour <= business_end
+    except pytz.exceptions.UnknownTimeZoneError:
+        return False
 
 def create_timeline_visualization():
     """Create the timeline visualization using plotly"""
@@ -79,7 +79,7 @@ def create_timeline_visualization():
             name=f"{location['city']} ({get_current_time(location['timezone'])})",
             marker=dict(
                 size=20,
-                color=[colors[idx] if bh else 'lightgrey' for bh in business_hours],
+                color=[colors[idx % len(colors)] if bh else 'lightgrey' for bh in business_hours],
                 opacity=[0.8 if bh else 0.3 for bh in business_hours],
             ),
             hovertext=hover_text,
@@ -126,6 +126,13 @@ def create_timeline_visualization():
 
     return fig
 
+# Main content
+st.title('Timezone Overlap Visualizer')
+st.markdown('''
+Find the perfect meeting time across different timezones.
+Business hours are considered to be 8 AM to 6 PM local time.
+''')
+
 # Sidebar for adding/removing locations
 st.sidebar.title('Location Settings')
 
@@ -139,15 +146,17 @@ available_locations = [(city, tz) for city, tz in available_timezones[region]
                       if tz not in selected_timezone_names]
 
 if available_locations:
-    city, timezone = st.sidebar.selectbox(
+    selected_location = st.sidebar.selectbox(
         'Add location',
         available_locations,
         format_func=lambda x: x[0]
     )
     
-    if st.sidebar.button('Add Location') and len(st.session_state.locations) < 6:
-        st.session_state.locations.append({'city': city, 'timezone': timezone})
-        st.experimental_rerun()
+    if st.sidebar.button('Add Location'):
+        if len(st.session_state.locations) < 6:
+            city, timezone = selected_location
+            st.session_state.locations.append({'city': city, 'timezone': timezone})
+            st.rerun()
 
 # Remove locations
 st.sidebar.markdown('---')
@@ -155,14 +164,7 @@ st.sidebar.subheader('Remove Locations')
 for idx, location in enumerate(st.session_state.locations):
     if st.sidebar.button(f'Remove {location["city"]}'):
         st.session_state.locations.pop(idx)
-        st.experimental_rerun()
-
-# Main content
-st.title('Timezone Overlap Visualizer')
-st.markdown('''
-Find the perfect meeting time across different timezones.
-Business hours are considered to be 8 AM to 6 PM local time.
-''')
+        st.rerun()
 
 # Display current time for each location
 st.subheader('Current Times')
